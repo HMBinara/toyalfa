@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { useAuthStore } from './store/authStore';
 import MainLayout from './components/layout/MainLayout';
 
@@ -24,6 +25,7 @@ function PageLoader() {
 function AdminRoute({ children }) {
   const { isLoggedIn, user } = useAuthStore();
   if (!isLoggedIn || user?.role !== 'admin') {
+    toast.error('Access Denied: Admin privileges required.');
     return <Navigate to="/" replace />;
   }
   return children;

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { BarChart3, Edit3, Package, Plus, Trash2, X } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import Navbar from '../components/layout/Navbar';
@@ -9,6 +10,7 @@ import { useAuthStore } from '../store/authStore';
 import { MOCK_USERS, MONTHLY_REVENUE } from '../data/mockData';
 
 export default function AdminPage() {
+  const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const products = useProductStore((state) => state.products);
   const addProduct = useProductStore((state) => state.addProduct);
@@ -20,7 +22,11 @@ export default function AdminPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState({ name: '', category: 'Toys & Games', price: '', stock: '', image: '', description: '' });
 
-  if (user?.role !== 'admin') return <Navigate to="/" replace />;
+  if (user?.role !== 'admin') {
+    toast.error('Access Denied: Admin privileges required.');
+    navigate('/', { replace: true });
+    return null;
+  }
 
   const totalSales = orders.reduce((sum, order) => sum + Number(order.total || 0), 0);
   const lowStock = products.filter((product) => product.stock < 10).length;

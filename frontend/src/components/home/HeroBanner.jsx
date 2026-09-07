@@ -1,4 +1,5 @@
 import { ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export default function HeroBanner() {
   return (
@@ -15,9 +16,9 @@ export default function HeroBanner() {
             Discover carefully curated products designed for quality, style, and everyday comfort.
           </p>
           <div className="pt-2">
-            <button className="bg-rose-500 hover:bg-rose-600 text-white font-medium px-6 py-3 rounded-lg text-sm flex items-center gap-2 shadow-sm hover:shadow transition">
+            <Link to="/shop" className="bg-rose-500 hover:bg-rose-600 text-white font-medium px-6 py-3 rounded-lg text-sm flex items-center gap-2 shadow-sm hover:shadow transition">
               Shop Now <ArrowRight size={16} />
-            </button>
+            </Link>
           </div>
         </div>
         <div className="w-full md:w-1/2 h-72 bg-gray-100 rounded-xl flex items-center justify-center text-gray-400 font-medium overflow-hidden">

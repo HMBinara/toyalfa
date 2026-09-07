@@ -8,7 +8,7 @@ export default function Navbar({ onOpenAuth }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { openCart, getTotalItems } = useCartStore();
-  const { isLoggedIn } = useAuthStore();
+  const { isLoggedIn, user } = useAuthStore();
   const wishlistCount = useWishlistStore((state) => state.items.length);
   const totalItems = getTotalItems();
   const isActive = (path) => location.pathname === path;
@@ -28,8 +28,9 @@ export default function Navbar({ onOpenAuth }) {
         <nav className="hidden md:flex gap-8 text-sm font-medium text-gray-600">
           <Link to="/" className={isActive('/') ? 'text-rose-600 font-semibold' : 'hover:text-rose-600 transition'}>Home</Link>
           <Link to="/shop" className={isActive('/shop') ? 'text-rose-600 font-semibold' : 'hover:text-rose-600 transition'}>Shop</Link>
-          <Link to="/shop" className="hover:text-rose-600 transition">Categories</Link>
+          <Link to="/#categories" className="hover:text-rose-600 transition">Categories</Link>
           <Link to="/shop?sort=newest" className="hover:text-rose-600 transition">New Arrivals</Link>
+          {user?.role === 'admin' && <Link to="/admin" className={isActive('/admin') ? 'text-rose-600 font-semibold' : 'hover:text-rose-600 transition'}>Admin Dashboard</Link>}
         </nav>
 
         <div className="flex items-center gap-5 text-gray-700">
