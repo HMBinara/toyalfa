@@ -1,15 +1,14 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
-import toast from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/authStore';
 import MainLayout from './components/layout/MainLayout';
 
-const HomePage           = lazy(() => import('./pages/HomePage'));
-const ShopPage           = lazy(() => import('./pages/ShopPage'));
-const ProductDetailPage  = lazy(() => import('./pages/ProductDetailPage'));
-const ProfilePage        = lazy(() => import('./pages/ProfilePage'));
-const AdminPage          = lazy(() => import('./pages/AdminPage'));
+const HomePage          = lazy(() => import('./pages/HomePage'));
+const ShopPage          = lazy(() => import('./pages/ShopPage'));
+const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage'));
+const ProfilePage       = lazy(() => import('./pages/ProfilePage'));
+const AdminPage         = lazy(() => import('./pages/AdminPage'));
 
 function PageLoader() {
   return (

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { BarChart3, Edit3, Package, Plus, Trash2, X } from 'lucide-react';
@@ -22,11 +22,14 @@ export default function AdminPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState({ name: '', category: 'Toys & Games', price: '', stock: '', image: '', description: '' });
 
-  if (user?.role !== 'admin') {
-    toast.error('Access Denied: Admin privileges required.');
-    navigate('/', { replace: true });
-    return null;
-  }
+  useEffect(() => {
+    if (user?.role !== 'admin') {
+      toast.error('Access Denied: Admin privileges required.');
+      navigate('/', { replace: true });
+    }
+  }, [navigate, user?.role]);
+
+  if (user?.role !== 'admin') return null;
 
   const totalSales = orders.reduce((sum, order) => sum + Number(order.total || 0), 0);
   const lowStock = products.filter((product) => product.stock < 10).length;
