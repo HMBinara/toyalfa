@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, Star, ShoppingBag, ShieldCheck, Truck, RefreshCw } from 'lucide-react';
+import { X, Star, ShoppingBag, ShieldCheck, Truck } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useCartStore } from '../../store/cartStore';
 
 export default function ProductDetailModal({ product, onClose }) {
@@ -64,6 +64,7 @@ export default function ProductDetailModal({ product, onClose }) {
             <button 
               onClick={() => {
                 addToCart(product);
+                toast.success(`${product.name.slice(0, 28)}… added to cart!`);
                 onClose();
               }}
               className="w-full bg-rose-500 hover:bg-rose-600 text-white font-medium py-3 rounded-xl text-sm flex items-center justify-center gap-2 shadow-sm transition"

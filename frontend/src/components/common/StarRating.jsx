@@ -1,4 +1,3 @@
-import React from 'react';
 import { Star } from 'lucide-react';
 
 export default function StarRating({ value = 0, onChange, readonly = false, size = 18 }) {

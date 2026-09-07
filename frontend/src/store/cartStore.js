@@ -29,11 +29,15 @@ export const useCartStore = create(
         }
       },
 
+      addItem: (product) => get().addToCart(product),
+
       removeFromCart: (productId) => {
         set((state) => ({
           cart: state.cart.filter((item) => item.id !== productId),
         }));
       },
+
+      removeItem: (productId) => get().removeFromCart(productId),
 
       updateQuantity: (productId, delta) => {
         const updatedCart = get()

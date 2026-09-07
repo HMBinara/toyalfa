@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { X, CheckCircle2, CreditCard, Truck, Tag, ChevronRight, Package, ArrowRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useCartStore } from '../../store/cartStore';
 import { useOrderStore } from '../../store/orderStore';
@@ -9,7 +8,7 @@ import { useAuthStore } from '../../store/authStore';
 const STEP = { SHIPPING: 1, PAYMENT: 2, SUCCESS: 3 };
 
 export default function CheckoutModal({ isOpen, onClose }) {
-  const { cart, getTotalPrice, getSubtotal, appliedPromo, applyPromoCode, removePromoCode, clearCart } = useCartStore();
+  const { cart, getSubtotal, appliedPromo, applyPromoCode, removePromoCode, clearCart } = useCartStore();
   const { placeOrder } = useOrderStore();
   const { user } = useAuthStore();
 
@@ -26,6 +25,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
   });
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [card, setCard] = useState({ number: '', expiry: '', cvv: '' });
+  const [receiptOpen, setReceiptOpen] = useState(false);
 
   if (!isOpen) return null;
 
@@ -36,18 +36,19 @@ export default function CheckoutModal({ isOpen, onClose }) {
       ? subtotal * (appliedPromo.discount / 100)
       : Math.min(appliedPromo.discount, subtotal)
     : 0;
-  const total = Math.max(0, subtotal - discount + shippingFee);
+  const taxableTotal = Math.max(0, subtotal - discount);
+  const tax = taxableTotal * 0.08;
+  const total = Math.max(0, taxableTotal + shippingFee + tax);
 
   const handleClose = () => {
-    if (step !== STEP.SUCCESS) {
-      onClose();
-    } else {
-      setStep(STEP.SHIPPING);
-      setPlacedOrder(null);
-      setPromoInput('');
-      setPromoError('');
-      onClose();
-    }
+    setStep(STEP.SHIPPING);
+    setPlacedOrder(null);
+    setPromoInput('');
+    setPromoError('');
+    setReceiptOpen(false);
+    setShipping({ name: user?.name || '', email: user?.email || '', phone: user?.phone || '', address: user?.address || '', city: '', zip: '' });
+    setCard({ number: '', expiry: '', cvv: '' });
+    onClose();
   };
 
   const handleApplyPromo = () => {
@@ -63,8 +64,8 @@ export default function CheckoutModal({ isOpen, onClose }) {
 
   const handleShippingNext = (e) => {
     e.preventDefault();
-    if (!shipping.name || !shipping.email || !shipping.address) {
-      toast.error('Please fill in all required fields.');
+    if (!shipping.name || !shipping.email || !shipping.address || !shipping.city || !shipping.zip) {
+      toast.error('Please fill in your name, email, address, city, and ZIP code.');
       return;
     }
     setStep(STEP.PAYMENT);
@@ -79,7 +80,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
     const order = placeOrder({
       items: cart,
       total,
-      address: shipping.address,
+      address: `${shipping.address}, ${shipping.city}, ${shipping.zip}`,
       paymentMethod: paymentMethod === 'cod' ? 'Cash on Delivery' : 'Card',
       name: shipping.name,
       email: shipping.email,
@@ -178,6 +179,14 @@ export default function CheckoutModal({ isOpen, onClose }) {
                     className={`${inputCls} resize-none`}
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">City *</label>
+                  <input type="text" required placeholder="Colombo" value={shipping.city} onChange={updateShipping('city')} className={inputCls} />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">ZIP / Postal Code *</label>
+                  <input type="text" required placeholder="00700" value={shipping.zip} onChange={updateShipping('zip')} className={inputCls} />
+                </div>
               </div>
 
               {/* Promo Code */}
@@ -231,6 +240,10 @@ export default function CheckoutModal({ isOpen, onClose }) {
                 <div className="flex justify-between text-gray-600">
                   <span className="flex items-center gap-1"><Truck size={13} /> Shipping</span>
                   <span>{shippingFee === 0 ? <span className="text-emerald-600 font-medium">Free</span> : `$${shippingFee.toFixed(2)}`}</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span>Tax</span>
+                  <span>${tax.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-gray-900 border-t border-gray-200 pt-2 mt-2">
                   <span>Total</span>
@@ -374,14 +387,11 @@ export default function CheckoutModal({ isOpen, onClose }) {
                 >
                   Continue Shopping
                 </button>
-                <Link
-                  to="/profile"
-                  onClick={handleClose}
-                  className="flex-1 bg-rose-500 hover:bg-rose-600 text-white font-semibold py-2.5 rounded-xl text-sm flex items-center justify-center gap-1 transition"
-                >
-                  View Orders <ArrowRight size={14} />
-                </Link>
+                <button onClick={() => setReceiptOpen((open) => !open)} className="flex-1 bg-rose-500 hover:bg-rose-600 text-white font-semibold py-2.5 rounded-xl text-sm flex items-center justify-center gap-1 transition">
+                  {receiptOpen ? 'Hide Receipt' : 'View Receipt'} <ArrowRight size={14} />
+                </button>
               </div>
+              {receiptOpen && <div className="text-left bg-white border border-gray-200 rounded-xl p-4 text-xs space-y-2"><p className="font-bold text-gray-900">ToyAlfa receipt</p><p className="text-gray-500">{placedOrder.id} · {placedOrder.date}</p>{placedOrder.items.map((item) => <div key={item.id} className="flex justify-between"><span>{item.name} × {item.quantity}</span><span>${(item.price * item.quantity).toFixed(2)}</span></div>)}<div className="border-t border-gray-100 pt-2 flex justify-between font-bold"><span>Total</span><span>${Number(placedOrder.total).toFixed(2)}</span></div></div>}
             </div>
           )}
         </div>

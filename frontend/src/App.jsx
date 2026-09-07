@@ -1,13 +1,14 @@
-import React, { lazy, Suspense } from 'react';
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/authStore';
+import MainLayout from './components/layout/MainLayout';
 
 const HomePage           = lazy(() => import('./pages/HomePage'));
 const ShopPage           = lazy(() => import('./pages/ShopPage'));
 const ProductDetailPage  = lazy(() => import('./pages/ProductDetailPage'));
 const ProfilePage        = lazy(() => import('./pages/ProfilePage'));
-const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
+const AdminPage          = lazy(() => import('./pages/AdminPage'));
 
 function PageLoader() {
   return (
@@ -63,22 +64,24 @@ export default function App() {
 
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          <Route path="/"            element={<HomePage />} />
-          <Route path="/shop"        element={<ShopPage />} />
-          <Route path="/product/:id" element={<ProductDetailPage />} />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <ProfilePage />
-              </ProtectedRoute>
-            }
-          />
+          <Route element={<MainLayout />}>
+            <Route path="/"            element={<HomePage />} />
+            <Route path="/shop"        element={<ShopPage />} />
+            <Route path="/product/:id" element={<ProductDetailPage />} />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
+              }
+            />
+          </Route>
           <Route
             path="/admin"
             element={
               <AdminRoute>
-                <AdminDashboardPage />
+                <AdminPage />
               </AdminRoute>
             }
           />

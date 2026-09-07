@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useCartStore } from '../../store/cartStore';
 import CheckoutModal from './CheckoutModal';
 
 export default function CartDrawer() {
-  const { cart, isCartOpen, closeCart, removeFromCart, updateQuantity, getTotalPrice } = useCartStore();
+  const { cart, isCartOpen, closeCart, removeFromCart, updateQuantity, getSubtotal } = useCartStore();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
   if (!isCartOpen) return null;
@@ -87,7 +87,7 @@ export default function CartDrawer() {
               <div className="p-6 border-t border-gray-100 bg-gray-50/50 space-y-4">
                 <div className="flex justify-between text-sm font-semibold text-gray-900">
                   <span>Subtotal</span>
-                  <span className="text-rose-600">${getTotalPrice().toFixed(2)}</span>
+                  <span className="text-rose-600">${getSubtotal().toFixed(2)}</span>
                 </div>
                 <p className="text-[11px] text-gray-400">Taxes and shipping calculated at checkout.</p>
                 

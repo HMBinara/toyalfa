@@ -1,19 +1,18 @@
-import React from 'react';
 import { Star, ShoppingBag, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useCartStore } from '../../store/cartStore';
 import { useWishlistStore } from '../../store/wishlistStore';
 
-export default function ProductCard({ product, onSelectProduct }) {
+export default function ProductCard({ product, onSelectProduct, onAddToCart, onToggleWishlist, onQuickView }) {
   const navigate = useNavigate();
   const addToCart = useCartStore((state) => state.addToCart);
   const { toggleWishlist, isWishlisted } = useWishlistStore();
   const wishlisted = isWishlisted(product.id);
 
   const handleCardClick = () => {
-    if (onSelectProduct) {
-      onSelectProduct(product);
+    if (onQuickView || onSelectProduct) {
+      (onQuickView || onSelectProduct)(product);
     } else {
       navigate(`/product/${product.id}`);
     }
@@ -22,12 +21,14 @@ export default function ProductCard({ product, onSelectProduct }) {
   const handleAddToCart = (e) => {
     e.stopPropagation();
     addToCart(product);
+    onAddToCart?.(product);
     toast.success(`${product.name.slice(0, 28)}… added to cart!`);
   };
 
   const handleWishlist = (e) => {
     e.stopPropagation();
     const added = toggleWishlist(product);
+    onToggleWishlist?.(product, added);
     if (added) {
       toast.success('Added to wishlist ❤️');
     } else {

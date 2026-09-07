@@ -49,6 +49,9 @@ export const useAuthStore = create(
 
       // Simulate registration — always succeeds and creates a customer
       register: (name, email, password) => {
+        if (typeof password !== 'string' || password.length < 6) {
+          return { success: false, error: 'Password must be at least 6 characters.' };
+        }
         const newUser = {
           id: `u_${Date.now()}`,
           name,
