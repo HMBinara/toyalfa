@@ -1,33 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-// Mock credential database
-const MOCK_CREDENTIALS = {
-  'customer@toyalfa.com': {
-    password: 'demo123',
-    user: {
-      id: 'u_cust_1',
-      name: 'Alex Johnson',
-      email: 'customer@toyalfa.com',
-      role: 'customer',
-      avatar: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Alex',
-      phone: '+94 77 123 4567',
-      address: '42 Maple Street, Colombo 07, Sri Lanka',
-    },
-  },
-  'admin@toyalfa.com': {
-    password: 'demo123',
-    user: {
-      id: 'u_admin_1',
-      name: 'Admin User',
-      email: 'admin@toyalfa.com',
-      role: 'admin',
-      avatar: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Admin',
-      phone: '+94 77 999 0000',
-      address: 'ToyAlfa HQ, Colombo 03, Sri Lanka',
-    },
-  },
-};
+const API_URL = 'http://localhost:8080/api';
 
 export const useAuthStore = create(
   persist(
@@ -36,34 +10,60 @@ export const useAuthStore = create(
       user: null,
       token: null,
 
-      // Simulate async login
-      login: (email, password) => {
-        const entry = MOCK_CREDENTIALS[email.toLowerCase()];
-        if (!entry) return { success: false, error: 'No account found with this email.' };
-        if (entry.password !== password) return { success: false, error: 'Incorrect password.' };
+      // Real API Login
+      login: async (email, password) => {
+        try {
+          const res = await fetch(`${API_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+          });
 
-        const token = `mock_jwt_${Date.now()}`;
-        set({ isLoggedIn: true, user: entry.user, token });
-        return { success: true, user: entry.user };
+          const data = await res.json();
+
+          if (!res.ok) {
+            return { success: false, error: data.detail || 'Login failed' };
+          }
+
+          const token = data.access_token;
+
+          // Fetch logged-in user profile details
+          const profileRes = await fetch(`${API_URL}/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          let userData = { email, name: email.split('@')[0], role: 'customer' };
+          if (profileRes.ok) {
+            userData = await profileRes.json();
+          }
+
+          set({ isLoggedIn: true, user: userData, token });
+          return { success: true, user: userData };
+        } catch (err) {
+          return { success: false, error: 'Could not connect to backend server.' };
+        }
       },
 
-      // Simulate registration — always succeeds and creates a customer
-      register: (name, email, password) => {
-        if (typeof password !== 'string' || password.length < 6) {
-          return { success: false, error: 'Password must be at least 6 characters.' };
+      // Real API Register
+      register: async (name, email, password) => {
+        try {
+          const res = await fetch(`${API_URL}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, password }),
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            return { success: false, error: data.detail || 'Registration failed' };
+          }
+
+          // Registration සාර්ථක වුණාම Auto Login වෙනවා
+          return await get().login(email, password);
+        } catch (err) {
+          return { success: false, error: 'Could not connect to backend server.' };
         }
-        const newUser = {
-          id: `u_${Date.now()}`,
-          name,
-          email,
-          role: 'customer',
-          avatar: `https://api.dicebear.com/8.x/avataaars/svg?seed=${name}`,
-          phone: '',
-          address: '',
-        };
-        const token = `mock_jwt_${Date.now()}`;
-        set({ isLoggedIn: true, user: newUser, token });
-        return { success: true, user: newUser };
       },
 
       logout: () => {

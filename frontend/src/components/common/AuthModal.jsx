@@ -31,38 +31,42 @@ export default function AuthModal({ isOpen, onClose }) {
 
   const update = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
-  const handleLogin = (e) => {
+  // Real Async Login Handler
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     if (!form.email || !form.password) { setError('Please fill in all fields.'); return; }
     setLoading(true);
-    setTimeout(() => {
-      const result = login(form.email, form.password);
-      setLoading(false);
-      if (result.success) {
-        toast.success(`Welcome back, ${result.user.name}! 👋`);
-        handleClose();
-      } else {
-        setError(result.error);
-      }
-    }, 700);
+
+    const result = await login(form.email, form.password);
+    setLoading(false);
+
+    if (result.success) {
+      toast.success(`Welcome back, ${result.user.name || 'User'}! 👋`);
+      handleClose();
+    } else {
+      setError(result.error);
+    }
   };
 
-  const handleRegister = (e) => {
+  // Real Async Register Handler
+  const handleRegister = async (e) => {
     e.preventDefault();
     setError('');
     if (!form.name || !form.email || !form.password) { setError('Please fill in all fields.'); return; }
     if (form.password.length < 6) { setError('Password must be at least 6 characters.'); return; }
     if (form.password !== form.confirm) { setError('Passwords do not match.'); return; }
     setLoading(true);
-    setTimeout(() => {
-      const result = register(form.name, form.email, form.password);
-      setLoading(false);
-      if (result.success) {
-        toast.success(`Account created! Welcome to ToyAlfa, ${result.user.name}! 🎉`);
-        handleClose();
-      }
-    }, 800);
+
+    const result = await register(form.name, form.email, form.password);
+    setLoading(false);
+
+    if (result.success) {
+      toast.success(`Account created! Welcome to ToyAlfa, ${result.user.name || 'User'}! 🎉`);
+      handleClose();
+    } else {
+      setError(result.error);
+    }
   };
 
   const handleForgot = (e) => {
@@ -104,9 +108,7 @@ export default function AuthModal({ isOpen, onClose }) {
             {panel === PANEL.FORGOT   && 'Reset your password'}
           </h2>
           <p className="text-xs text-gray-500 mt-0.5">
-            {panel === PANEL.LOGIN && (
-              <>Demo: <span className="font-semibold text-rose-600">customer@toyalfa.com</span> / <span className="font-semibold text-rose-600">demo123</span></>
-            )}
+            {panel === PANEL.LOGIN && 'Enter your credentials to access your account.'}
             {panel === PANEL.REGISTER && 'Fill in the form to get started.'}
             {panel === PANEL.FORGOT   && 'We\'ll send a reset link to your email.'}
           </p>
