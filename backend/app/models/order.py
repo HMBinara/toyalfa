@@ -11,13 +11,14 @@ class Order(Base):
     order_number: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
     total_amount: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
-    status: Mapped[str] = mapped_column(String(30), default="Processing") # Processing, Shipped, Delivered, Cancelled
+    status: Mapped[str] = mapped_column(String(30), default="Processing")
     shipping_address: Mapped[str] = mapped_column(Text, nullable=False)
+    phone_number: Mapped[str] = mapped_column(String(20), nullable=False)
     payment_method: Mapped[str] = mapped_column(String(50), default="Cash on Delivery")
     tracking_number: Mapped[str] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-    items = relationship("OrderItem", back_populates="order")
+    items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
 
 class OrderItem(Base):
     __tablename__ = "order_items"

@@ -7,10 +7,10 @@ class OrderItemCreate(BaseModel):
     quantity: int
 
 class OrderItemResponse(BaseModel):
-    id: int
+    id: str
     product_id: str
     quantity: int
-    price: float
+    unit_price: float
 
     class Config:
         from_attributes = True
@@ -19,14 +19,17 @@ class OrderCreate(BaseModel):
     items: List[OrderItemCreate]
     shipping_address: str
     phone_number: str
+    payment_method: Optional[str] = "Cash on Delivery"
 
 class OrderResponse(BaseModel):
     id: str
-    user_id: int
+    order_number: str
+    user_id: str
     total_amount: float
     status: str
     shipping_address: str
     phone_number: str
+    payment_method: str
     created_at: datetime
     items: List[OrderItemResponse]
 

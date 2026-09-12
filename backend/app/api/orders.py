@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from typing import List
 import httpx
 import os
+import secrets
+from datetime import datetime
 
 from app.db.session import get_db
 from app.models.order import Order, OrderItem
@@ -20,6 +22,11 @@ async def send_n8n_notification(order_data: dict):
             await client.post(N8N_WEBHOOK_URL, json=order_data, timeout=5.0)
     except Exception as e:
         print(f"Failed to send webhook to n8n: {e}")
+
+def generate_order_number() -> str:
+    timestamp = datetime.utcnow().strftime("%Y%m%d")
+    random_hex = secrets.token_hex(3).upper()
+    return f"ORD-{timestamp}-{random_hex}"
 
 @router.post("/", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
 async def create_order(
@@ -41,22 +48,27 @@ async def create_order(
         if product.stock < item.quantity:
             raise HTTPException(status_code=400, detail=f"Insufficient stock for {product.name}")
 
+        # Stock sync
         product.stock -= item.quantity
-        item_price = product.price * item.quantity
-        total_amount += item_price
+        item_total = float(product.price) * item.quantity
+        total_amount += item_total
 
         db_items.append(OrderItem(
             product_id=product.id,
             quantity=item.quantity,
-            price=product.price
+            unit_price=product.price
         ))
 
+    order_num = generate_order_number()
+
     new_order = Order(
-        user_id=current_user.id,
+        order_number=order_num,
+        user_id=str(current_user.id),
         total_amount=total_amount,
         shipping_address=order_in.shipping_address,
         phone_number=order_in.phone_number,
-        status="pending",
+        payment_method=order_in.payment_method,
+        status="Processing",
         items=db_items
     )
 
@@ -64,11 +76,15 @@ async def create_order(
     db.commit()
     db.refresh(new_order)
 
+    # User model field is name
+    user_name = getattr(current_user, "name", getattr(current_user, "full_name", "Customer"))
+
     webhook_payload = {
         "order_id": new_order.id,
+        "order_number": new_order.order_number,
         "customer_email": current_user.email,
-        "customer_name": current_user.full_name,
-        "total_amount": new_order.total_amount,
+        "customer_name": user_name,
+        "total_amount": float(new_order.total_amount),
         "shipping_address": new_order.shipping_address,
         "phone_number": new_order.phone_number,
         "items_count": len(db_items)
@@ -79,4 +95,4 @@ async def create_order(
 
 @router.get("/my-orders", response_model=List[OrderResponse])
 def get_user_orders(db: Session = Depends(get_db), current_user = Depends(get_current_user)):
-    return db.query(Order).filter(Order.user_id == current_user.id).all()
+    return db.query(Order).filter(Order.user_id == str(current_user.id)).all()

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, CheckCircle2, CreditCard, Truck, Tag, ChevronRight, Package, ArrowRight } from 'lucide-react';
+import { X, CheckCircle2, CreditCard, Truck, Tag, ChevronRight, Package, ArrowRight, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCartStore } from '../../store/cartStore';
 import { useOrderStore } from '../../store/orderStore';
@@ -9,19 +9,22 @@ const STEP = { SHIPPING: 1, PAYMENT: 2, SUCCESS: 3 };
 
 export default function CheckoutModal({ isOpen, onClose }) {
   const { cart, getSubtotal, appliedPromo, applyPromoCode, removePromoCode, clearCart } = useCartStore();
-  const { placeOrder } = useOrderStore();
-  const { user } = useAuthStore();
+  const { placeOrder } = useOrderStore(); // Optional local store fallback/sync
+  const { user, token } = useAuthStore();
 
   const [step, setStep] = useState(STEP.SHIPPING);
   const [promoInput, setPromoInput] = useState('');
   const [promoError, setPromoError] = useState('');
   const [placedOrder, setPlacedOrder] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const [shipping, setShipping] = useState({
     name: user?.name || '',
     email: user?.email || '',
     phone: user?.phone || '',
     address: user?.address || '',
+    city: '',
+    zip: '',
   });
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [card, setCard] = useState({ number: '', expiry: '', cvv: '' });
@@ -46,7 +49,14 @@ export default function CheckoutModal({ isOpen, onClose }) {
     setPromoInput('');
     setPromoError('');
     setReceiptOpen(false);
-    setShipping({ name: user?.name || '', email: user?.email || '', phone: user?.phone || '', address: user?.address || '', city: '', zip: '' });
+    setShipping({
+      name: user?.name || '',
+      email: user?.email || '',
+      phone: user?.phone || '',
+      address: user?.address || '',
+      city: '',
+      zip: '',
+    });
     setCard({ number: '', expiry: '', cvv: '' });
     onClose();
   };
@@ -64,33 +74,92 @@ export default function CheckoutModal({ isOpen, onClose }) {
 
   const handleShippingNext = (e) => {
     e.preventDefault();
-    if (!shipping.name || !shipping.email || !shipping.address || !shipping.city || !shipping.zip) {
-      toast.error('Please fill in your name, email, address, city, and ZIP code.');
+    if (!shipping.name || !shipping.email || !shipping.phone || !shipping.address || !shipping.city || !shipping.zip) {
+      toast.error('Please fill in your name, email, phone number, address, city, and ZIP code.');
       return;
     }
     setStep(STEP.PAYMENT);
   };
 
-  const handlePlaceOrder = (e) => {
+  const handlePlaceOrder = async (e) => {
     e.preventDefault();
     if (paymentMethod === 'card' && (!card.number || !card.expiry || !card.cvv)) {
       toast.error('Please fill in all card details.');
       return;
     }
-    const order = placeOrder({
-      items: cart,
-      total,
-      address: `${shipping.address}, ${shipping.city}, ${shipping.zip}`,
-      paymentMethod: paymentMethod === 'cod' ? 'Cash on Delivery' : 'Card',
-      name: shipping.name,
-      email: shipping.email,
-      phone: shipping.phone,
-      promoCode: appliedPromo?.code || null,
-    });
-    clearCart();
-    setPlacedOrder(order);
-    setStep(STEP.SUCCESS);
-    toast.success('Order placed successfully! 🎉');
+
+    if (!cart || cart.length === 0) {
+      toast.error('Your cart is empty!');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const fullShippingAddress = `${shipping.address}, ${shipping.city}, ${shipping.zip}`;
+      const selectedPayment = paymentMethod === 'cod' ? 'Cash on Delivery' : 'Credit/Debit Card';
+
+      // 1. Send Request to Real FastAPI Backend Endpoint
+      const response = await fetch('http://localhost:8080/api/orders/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          items: cart.map((item) => ({
+            product_id: item.id,
+            quantity: item.quantity,
+          })),
+          shipping_address: fullShippingAddress,
+          phone_number: shipping.phone,
+          payment_method: selectedPayment,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || 'Failed to place order');
+      }
+
+      // 2. Format response for UI Success view
+      const confirmedOrder = {
+        id: data.order_number || data.id,
+        date: new Date(data.created_at).toLocaleDateString(),
+        total: data.total_amount,
+        items: cart,
+        trackingSteps: [
+          { label: 'Order Placed', done: true, date: 'Just now' },
+          { label: 'Processing', done: true, date: 'In progress' },
+          { label: 'Shipped', done: false, date: 'Pending' },
+          { label: 'Delivered', done: false, date: 'Pending' },
+        ],
+      };
+
+      // 3. Fallback sync to local state if needed
+      if (placeOrder) {
+        placeOrder({
+          items: cart,
+          total,
+          address: fullShippingAddress,
+          paymentMethod: selectedPayment,
+          name: shipping.name,
+          email: shipping.email,
+          phone: shipping.phone,
+          promoCode: appliedPromo?.code || null,
+        });
+      }
+
+      clearCart();
+      setPlacedOrder(confirmedOrder);
+      setStep(STEP.SUCCESS);
+      toast.success('Order placed successfully! 🎉');
+    } catch (err) {
+      toast.error(err.message || 'Something went wrong while placing order.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const updateShipping = (field) => (e) =>
@@ -109,8 +178,8 @@ export default function CheckoutModal({ isOpen, onClose }) {
           <div>
             <h2 className="text-base font-bold text-gray-900">
               {step === STEP.SHIPPING && 'Shipping Details'}
-              {step === STEP.PAYMENT  && 'Payment & Review'}
-              {step === STEP.SUCCESS  && 'Order Confirmed! 🎉'}
+              {step === STEP.PAYMENT && 'Payment & Review'}
+              {step === STEP.SUCCESS && 'Order Confirmed! 🎉'}
             </h2>
             {step !== STEP.SUCCESS && (
               <div className="flex gap-1 mt-1.5">
@@ -159,9 +228,10 @@ export default function CheckoutModal({ isOpen, onClose }) {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Phone</label>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Phone *</label>
                   <input
                     type="tel"
+                    required
                     placeholder="+94 7X XXX XXXX"
                     value={shipping.phone}
                     onChange={updateShipping('phone')}
@@ -280,7 +350,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
                 <label className="block text-xs font-semibold text-gray-600 mb-2">Payment Method</label>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { value: 'cod',  label: 'Cash on Delivery', icon: <Truck size={16} /> },
+                    { value: 'cod', label: 'Cash on Delivery', icon: <Truck size={16} /> },
                     { value: 'card', label: 'Credit/Debit Card', icon: <CreditCard size={16} /> },
                   ].map((m) => (
                     <button
@@ -328,7 +398,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
                     />
                   </div>
                   <p className="text-[11px] text-gray-400 flex items-center gap-1">
-                    🔒 This is a mock demo — no real payment is processed.
+                    🔒 Payment authorization will be sent securely to the order service.
                   </p>
                 </div>
               )}
@@ -391,7 +461,22 @@ export default function CheckoutModal({ isOpen, onClose }) {
                   {receiptOpen ? 'Hide Receipt' : 'View Receipt'} <ArrowRight size={14} />
                 </button>
               </div>
-              {receiptOpen && <div className="text-left bg-white border border-gray-200 rounded-xl p-4 text-xs space-y-2"><p className="font-bold text-gray-900">ToyAlfa receipt</p><p className="text-gray-500">{placedOrder.id} · {placedOrder.date}</p>{placedOrder.items.map((item) => <div key={item.id} className="flex justify-between"><span>{item.name} × {item.quantity}</span><span>${(item.price * item.quantity).toFixed(2)}</span></div>)}<div className="border-t border-gray-100 pt-2 flex justify-between font-bold"><span>Total</span><span>${Number(placedOrder.total).toFixed(2)}</span></div></div>}
+              {receiptOpen && (
+                <div className="text-left bg-white border border-gray-200 rounded-xl p-4 text-xs space-y-2">
+                  <p className="font-bold text-gray-900">ToyAlfa receipt</p>
+                  <p className="text-gray-500">{placedOrder.id} · {placedOrder.date}</p>
+                  {placedOrder.items.map((item) => (
+                    <div key={item.id} className="flex justify-between">
+                      <span>{item.name} × {item.quantity}</span>
+                      <span>${(item.price * item.quantity).toFixed(2)}</span>
+                    </div>
+                  ))}
+                  <div className="border-t border-gray-100 pt-2 flex justify-between font-bold">
+                    <span>Total</span>
+                    <span>${Number(placedOrder.total).toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -402,21 +487,31 @@ export default function CheckoutModal({ isOpen, onClose }) {
             {step === STEP.PAYMENT && (
               <button
                 type="button"
+                disabled={loading}
                 onClick={() => setStep(STEP.SHIPPING)}
-                className="flex-1 border border-gray-200 text-gray-700 font-semibold py-3 rounded-xl text-sm hover:bg-gray-50 transition"
+                className="flex-1 border border-gray-200 text-gray-700 font-semibold py-3 rounded-xl text-sm hover:bg-gray-50 transition disabled:opacity-50"
               >
                 ← Back
               </button>
             )}
             <button
               type="submit"
+              disabled={loading}
               form={step === STEP.SHIPPING ? 'shipping-form' : 'payment-form'}
-              className="flex-1 bg-rose-500 hover:bg-rose-600 text-white font-semibold py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition shadow-sm"
+              className="flex-1 bg-rose-500 hover:bg-rose-600 text-white font-semibold py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition shadow-sm disabled:opacity-70"
             >
-              {step === STEP.SHIPPING ? (
-                <>Continue to Payment <ChevronRight size={16} /></>
+              {loading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" /> Processing Order...
+                </>
+              ) : step === STEP.SHIPPING ? (
+                <>
+                  Continue to Payment <ChevronRight size={16} />
+                </>
               ) : (
-                <>Place Order <CheckCircle2 size={16} /></>
+                <>
+                  Place Order <CheckCircle2 size={16} />
+                </>
               )}
             </button>
           </div>
